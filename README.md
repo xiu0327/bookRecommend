@@ -22,7 +22,7 @@ To Do 앱을 응용하여 만든 도서 추천 시스템
 네이버 블로그로 사람들의 취향을 파악하여 그에 맞는 도서를 추천해주면 어떨까?
 
 
-## 개발 과정
+## 개발 과정 - 백엔드
 
 ### 1. 데이터 수집
 
@@ -51,15 +51,89 @@ To Do 앱을 응용하여 만든 도서 추천 시스템
 
 나는 책 소개에서 명사와 형용사만 추출하여 이를 TF-IDF로 벡터화 했다. 어차피 키워드끼리 비교하는 것이기 때문에 단어의 빈도만 고려해도 어느 정도 만족스러운 결과가 나올 거라 예상했다. 
 
+
+```python
+tfidf = TfidfVectorizer()
+data = [bookinfo[key]["bookToken"] for key in bookinfo.keys()]
+data.append(keywords)
+tfidf_matrix = tfidf.fit_transform(data)
+cosine_sim = cosine_similarity(tfidf_matrix, tfidf_matrix)
+title_to_index = dict(zip(data, [n for n in range(len(data))]))
+result = get_recommendations(keywords, title_to_index, list(bookinfo.keys()), cosine_sim)
 ```
-    data = [bookinfo[key]["bookToken"] for key in bookinfo.keys()]
-    data.append(keywords)
-    tfidf_matrix = tfidf.fit_transform(data)
-    cosine_sim = cosine_similarity(tfidf_matrix, tfidf_matrix)
-    title_to_index = dict(zip(data, [n for n in range(len(data))]))
-    result = get_recommendations(keywords, title_to_index, list(bookinfo.keys()), cosine_sim)
-```
+
 
 우선 각 도서의 책 소개를 data 변수에 넣었다. 이때 책 소개는 앞에서 Okt 토크나이저로 명사/형용사만 추출된 상태이다.
 
+그 다음, 추출한 키워드를 data 변수에 추가했다. 이때 추출한 키워드는 list 형태가 아닌 string 형태이다. 
+
+처음엔 키워드를 따로 처리했다. [소망, 사람, 마음]이라는 키워드가 추출되었으면, 소망과 유사한 도서/ 사람과 유사한 도서 .. 이런 식으로 도서를 추출했다. 그러다 보니 중복된 도서가 많았고 이를 처리하기 위해 또 시간복잡도를 늘리고 싶지 않았다. 
+
+어차피 키워드는 서로 연관성이 있는 단어들이 뽑힌다. 그렇기에 한 문장으로 묶어도 될 것 같았다. 
+
+이후, 사이킷런에서 제공하는 TF-IDF 알고리즘 라이브러리를 활용하여 코사인 유사도를 계산했다. 
+
+
+### 4. API 배포
+
+사실 머신러닝은 내가 지원하고자 하는 분야가 아니라서 정말 기본적인 알고리즘으로 추천 시스템을 구성했다. 아마 위 알고리즘 보다 더 좋은 도서 추천 알고리즘이 있지 않을까?
+
+아무튼 위에서 만든 알고리즘을 Flask API로 배포하고자 한다. 
+
+API는 다음과 같은 과정으로 진행된다.
+
+Nginix -> uwsgi socket -> Flask
+
+먼저 Nginix 웹 서버로 API를 구동하면 uwsgi socket을 실행하여 Flask API를 작동시킨다. 
+
+사실 Ngnix를 사용한 이유는 리버스 프록시를 사용해보고 싶어서였다. 
+
+```python
+CORS(app, resources={r'*': {'origins': '*'}})
+CORS(app, resources={r'*': {'origins': 'http://localhost:3000'}})
+
+```
+
+API를 만들면 절대 피할 수 없는 문제가 CORS 정책 문제이다. 지금까지 Flask API에서 CORS 정책을 해결했지만, Ngnix로 해결하면 더 간단할 것 같았다. 
+
+하지만 .. 
+
+GET REST API는 잘 작동하는데 POST REST API는 왜인지 되지 않았다. 
+
+몇일 동안 구글링하며 해결책을 찾지 못했다. 그래서 이번 프로젝트는 어쩔 수 없이 또 Flask에서 CORS 정책을 해결했다 ..
+
+아직 내가 Ngnix 설정이 미숙해서 그런 듯 싶다. 다음 프로젝트에서는 이 문제에 대해 좀 더 심도있게 다뤄야겠다. 
+
+또 HTTPS, HTTP 호환 문제도 있었다. API는 HTTP에서 구동되는데, API를 적용할 페이지는 HTTPS여서 API를 불러오지 못하는 에러였다. 
+
+이또한 몇날 몇일 구글링을 해서 여러가지 해결책을 찾았지만, 해결하지 못했다. 
+
+정말 ..
+
+정말 .. 다음엔 CORS, HTTP/HTTPS 문제 .. 해결해준다 !!! 
+
+
+## 개발 과정 - 프론트엔드
+
+나는 정말 미적 감각이 없기 때문에 앞서 학습용으로 만들었던 "ToDo 앱"에서 디자인을 가져왔다. 
+
+전반적인 코드는 ToDo 앱과 달라진 것이 없기 때문에 생략한다. 
+
+
+![ezgif com-gif-maker](https://user-images.githubusercontent.com/78461009/183413533-d7179f1b-6afa-4acf-a8f5-827554346ab3.gif)
+
+
+어쨌든 ~!
+
+뚝딱거리며 개인 프로젝트를 하나 완성했다. 
+
+도서관 데이터를 다루지 못한 아쉬움과, 나름 백엔드 지망생인데 CORS/HTTP와 같은 기본적인 문제를 해결하지 못한 것에 대해 아쉬움이 남는 프로젝트이다. 
+
+다음엔 ...!
+
+농 . 담 . 곰 커뮤니티를 만들고자 한다. 
+
+오늘의 집을 클론코딩하여 여기서 집이 아닌 오늘의 '농 . 담 . 곰'으로, 자신이 가진 농담곰에 대해 자랑하고 농담곰과 관련된 굿즈를 판매하는 그런 사이트를 개인 프로젝트로 한번 만들어보고자 한다.
+
+하~!! 가보자고 ~
 
