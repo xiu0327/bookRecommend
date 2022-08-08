@@ -46,3 +46,20 @@ To Do 앱을 응용하여 만든 도서 추천 시스템
 그러나 네이버 게시글 수가 적으면 키워드가 추출되지 않는 에러가 발생할 수 있다. 이럴 땐 명사만 추출해도 어느 정도 키워드를 잡을 수 있을 거라 생각했다. 단, mecab, khaiii 등과 같은 토크나이저로 명사를 추출하기에 네이버 블로그는 맞춤법과 띄어쓰기가 지켜지지 않았다. 그래서 soynlp 토크나이저를 활용하여 명사를 추출했다. 
 
 ### 3. 유사도 측정
+
+키워드를 추출했으니, 키워드와 유사한 도서를 찾아야 한다. 
+
+나는 책 소개에서 명사와 형용사만 추출하여 이를 TF-IDF로 벡터화 했다. 어차피 키워드끼리 비교하는 것이기 때문에 단어의 빈도만 고려해도 어느 정도 만족스러운 결과가 나올 거라 예상했다. 
+
+```
+    data = [bookinfo[key]["bookToken"] for key in bookinfo.keys()]
+    data.append(keywords)
+    tfidf_matrix = tfidf.fit_transform(data)
+    cosine_sim = cosine_similarity(tfidf_matrix, tfidf_matrix)
+    title_to_index = dict(zip(data, [n for n in range(len(data))]))
+    result = get_recommendations(keywords, title_to_index, list(bookinfo.keys()), cosine_sim)
+```
+
+우선 각 도서의 책 소개를 data 변수에 넣었다. 이때 책 소개는 앞에서 Okt 토크나이저로 명사/형용사만 추출된 상태이다.
+
+
